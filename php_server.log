@@ -1,0 +1,84 @@
+[Sat Oct  3 16:19:45 2026] PHP 8.3.6 Development Server (http://127.0.0.1:8080) started
+[Sat Oct  3 16:19:52 2026] 127.0.0.1:51312 Accepted
+[Sat Oct  3 16:19:52 2026] 127.0.0.1:51312 [200]: HEAD /installer/index.php
+[Sat Oct  3 16:19:52 2026] 127.0.0.1:51312 Closing
+[Sat Oct  3 16:20:02 2026] 127.0.0.1:60572 Accepted
+[Sat Oct  3 16:20:02 2026] 127.0.0.1:60572 [302]: POST /installer/index.php?step=2
+[Sat Oct  3 16:20:02 2026] 127.0.0.1:60572 Closing
+[Sat Oct  3 16:20:02 2026] 127.0.0.1:60586 Accepted
+[Sat Oct  3 16:20:02 2026] 127.0.0.1:60586 [302]: POST /installer/index.php?step=3
+[Sat Oct  3 16:20:02 2026] 127.0.0.1:60586 Closing
+[Sat Oct  3 16:20:02 2026] 127.0.0.1:60598 Accepted
+[Sat Oct  3 16:20:02 2026] 127.0.0.1:60598 [302]: POST /installer/index.php?step=4
+[Sat Oct  3 16:20:02 2026] 127.0.0.1:60598 Closing
+[Sat Oct  3 16:20:18 2026] 127.0.0.1:35310 Accepted
+[Sat Oct  3 16:20:18 2026] PHP Fatal error:  Uncaught PDOException: SQLSTATE[HY000]: General error: 1 no such table: cms_media in /app/includes/db.php:89
+Stack trace:
+#0 /app/includes/db.php(89): PDO->prepare()
+#1 /app/includes/db.php(95): DB::query()
+#2 /app/index.php(8): DB::fetchAll()
+#3 {main}
+  thrown in /app/includes/db.php on line 89
+[Sat Oct  3 16:20:18 2026] 127.0.0.1:35310 [500]: GET /index.php - Uncaught PDOException: SQLSTATE[HY000]: General error: 1 no such table: cms_media in /app/includes/db.php:89
+Stack trace:
+#0 /app/includes/db.php(89): PDO->prepare()
+#1 /app/includes/db.php(95): DB::query()
+#2 /app/index.php(8): DB::fetchAll()
+#3 {main}
+  thrown in /app/includes/db.php on line 89
+[Sat Oct  3 16:20:18 2026] 127.0.0.1:35310 Closing
+[Sat Oct  3 16:20:25 2026] 127.0.0.1:60198 Accepted
+[Sat Oct  3 16:20:25 2026] PHP Fatal error:  Uncaught PDOException: SQLSTATE[HY000]: General error: 1 no such table: cms_media in /app/includes/db.php:89
+Stack trace:
+#0 /app/includes/db.php(89): PDO->prepare()
+#1 /app/includes/db.php(95): DB::query()
+#2 /app/index.php(8): DB::fetchAll()
+#3 {main}
+  thrown in /app/includes/db.php on line 89
+[Sat Oct  3 16:20:25 2026] 127.0.0.1:60198 [500]: GET /index.php - Uncaught PDOException: SQLSTATE[HY000]: General error: 1 no such table: cms_media in /app/includes/db.php:89
+Stack trace:
+#0 /app/includes/db.php(89): PDO->prepare()
+#1 /app/includes/db.php(95): DB::query()
+#2 /app/index.php(8): DB::fetchAll()
+#3 {main}
+  thrown in /app/includes/db.php on line 89
+[Sat Oct  3 16:20:25 2026] 127.0.0.1:60198 Closing
+[Sat Oct  3 16:20:51 2026] 127.0.0.1:54972 Accepted
+[Sat Oct  3 16:20:51 2026] 127.0.0.1:54972 [302]: POST /installer/index.php?step=2
+[Sat Oct  3 16:20:51 2026] 127.0.0.1:54972 Closing
+[Sat Oct  3 16:20:51 2026] 127.0.0.1:54978 Accepted
+[Sat Oct  3 16:20:51 2026] 127.0.0.1:54978 [302]: POST /installer/index.php?step=3
+[Sat Oct  3 16:20:51 2026] 127.0.0.1:54978 Closing
+[Sat Oct  3 16:20:51 2026] 127.0.0.1:54986 Accepted
+[Sat Oct  3 16:20:51 2026] 127.0.0.1:54986 [302]: POST /installer/index.php?step=4
+[Sat Oct  3 16:20:51 2026] 127.0.0.1:54986 Closing
+[Sat Oct  3 16:20:58 2026] 127.0.0.1:54998 Accepted
+[Sat Oct  3 16:20:58 2026] 127.0.0.1:54998 [200]: GET /index.php
+[Sat Oct  3 16:20:58 2026] 127.0.0.1:54998 Closing
+[Sat Oct  3 16:21:37 2026] 127.0.0.1:43156 Accepted
+[Sat Oct  3 16:21:37 2026] 127.0.0.1:43156 [200]: GET /index.php
+[Sat Oct  3 16:21:37 2026] 127.0.0.1:43156 Closing
+[Sat Oct  3 16:21:37 2026] 127.0.0.1:43172 Accepted
+[Sat Oct  3 16:21:37 2026] 127.0.0.1:43172 [200]: GET /assets/css/style.css
+[Sat Oct  3 16:21:37 2026] 127.0.0.1:43172 Closing
+[Sat Oct  3 16:21:38 2026] 127.0.0.1:43184 Accepted
+[Sat Oct  3 16:21:38 2026] 127.0.0.1:43184 [200]: GET /login.php
+[Sat Oct  3 16:21:38 2026] 127.0.0.1:43184 Closing
+[Sat Oct  3 16:21:38 2026] 127.0.0.1:43196 Accepted
+[Sat Oct  3 16:21:38 2026] 127.0.0.1:43196 [200]: GET /assets/css/style.css
+[Sat Oct  3 16:21:38 2026] 127.0.0.1:43196 Closing
+[Sat Oct  3 16:21:38 2026] 127.0.0.1:43198 Accepted
+[Sat Oct  3 16:21:38 2026] 127.0.0.1:43198 [200]: GET /search.php?q=
+[Sat Oct  3 16:21:38 2026] 127.0.0.1:43198 Closing
+[Sat Oct  3 16:21:38 2026] 127.0.0.1:43204 Accepted
+[Sat Oct  3 16:21:38 2026] 127.0.0.1:43204 [200]: GET /assets/css/style.css
+[Sat Oct  3 16:21:38 2026] 127.0.0.1:43204 Closing
+[Sat Oct  3 16:21:38 2026] 127.0.0.1:43206 Accepted
+[Sat Oct  3 16:21:38 2026] 127.0.0.1:43206 [302]: GET /admin/index.php
+[Sat Oct  3 16:21:38 2026] 127.0.0.1:43206 Closing
+[Sat Oct  3 16:21:38 2026] 127.0.0.1:43218 Accepted
+[Sat Oct  3 16:21:38 2026] 127.0.0.1:43218 [200]: GET /login.php
+[Sat Oct  3 16:21:38 2026] 127.0.0.1:43218 Closing
+[Sat Oct  3 16:21:38 2026] 127.0.0.1:43234 Accepted
+[Sat Oct  3 16:21:38 2026] 127.0.0.1:43234 [200]: GET /assets/css/style.css
+[Sat Oct  3 16:21:38 2026] 127.0.0.1:43234 Closing
