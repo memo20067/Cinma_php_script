@@ -1,14 +1,25 @@
 <?php
+$step = isset($_GET['step']) ? (int)$_GET['step'] : 1;
+require_once __DIR__ . '/../includes/db.php';
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
+$installerLanguage = isset($_GET['language']) && in_array($_GET['language'], ['ar', 'en'], true)
+    ? $_GET['language']
+    : ($_SESSION['language'] ?? 'ar');
+$_SESSION['language'] = $installerLanguage;
 
-// If config.php already exists, installer should be locked
-if (file_exists(__DIR__ . '/../config.php')) {
-    die('<!DOCTYPE html><html><head><title>Installer Locked</title><link rel="stylesheet" href="/assets/css/style.css"></head><body style="padding: 2rem;"><div style="max-width:600px; margin: 0 auto; background: #1e293b; padding: 2rem; border-radius: 8px;"><h2>System Already Installed</h2><p style="margin-top: 1rem;"><code>config.php</code> already exists. If you want to reinstall, please delete <code>config.php</code> from the root folder first.</p><p style="margin-top: 1rem;"><a href="/index.php" class="btn btn-primary">Go to Homepage</a></p></div></body></html>');
+function installer_tr($arabic, $english) {
+    global $installerLanguage;
+    return $installerLanguage === 'en' ? $english : $arabic;
 }
 
-$step = isset($_GET['step']) ? (int)$_GET['step'] : 1;
+// Keep the installer locked after setup, while still showing its completion page.
+if (file_exists(__DIR__ . '/../config.php') && $step !== 5) {
+    die('<!DOCTYPE html><html lang="' . htmlspecialchars($installerLanguage, ENT_QUOTES, 'UTF-8') . '" dir="' . ($installerLanguage === 'ar' ? 'rtl' : 'ltr') . '"><head><meta charset="UTF-8"><title>' . htmlspecialchars(installer_tr('المثبت مقفل', 'Installer locked'), ENT_QUOTES, 'UTF-8') . '</title><link rel="stylesheet" href="' . htmlspecialchars(site_url('assets/css/style.css'), ENT_QUOTES, 'UTF-8') . '"></head><body style="padding: 2rem;"><div style="max-width:600px; margin: 0 auto; background: #1e293b; padding: 2rem; border-radius: 8px;"><h2>' . htmlspecialchars(installer_tr('تم تثبيت النظام بالفعل', 'System already installed'), ENT_QUOTES, 'UTF-8') . '</h2><p style="margin-top: 1rem;">' . htmlspecialchars(installer_tr('ملف', 'The file')) . ' <code>config.php</code> ' . htmlspecialchars(installer_tr('موجود بالفعل. لإعادة التثبيت، احذف هذا الملف من المجلد الرئيسي أولاً.', 'already exists. To reinstall, delete it from the root folder first.'), ENT_QUOTES, 'UTF-8') . '</p><p style="margin-top: 1rem;"><a href="' . htmlspecialchars(site_url('index.php'), ENT_QUOTES, 'UTF-8') . '" class="btn btn-primary">' . htmlspecialchars(installer_tr('الذهاب إلى الصفحة الرئيسية', 'Go to homepage'), ENT_QUOTES, 'UTF-8') . '</a></p></div></body></html>');
+}
+
 $error = '';
 $success = '';
 
@@ -51,7 +62,8 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST') 
                 exit;
             }
         } catch (PDOException $e) {
-            $error = "Database Connection Failed: " . $e->getMessage();
+            error_log('Installer database connection failed: ' . $e->getMessage());
+            $error = installer_tr('تعذر الاتصال بقاعدة البيانات. تحقق من الإعدادات ثم أعد المحاولة.', 'Database connection failed. Check the settings and try again.');
         }
     } elseif (isset($_POST['step_3'])) {
         // Site Configuration
@@ -62,9 +74,9 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST') 
         $admin_pass_confirm = $_POST['admin_pass_confirm'] ?? '';
 
         if (empty($admin_user) || empty($admin_email) || empty($admin_pass)) {
-            $error = "All admin fields are required.";
+            $error = installer_tr('جميع حقول المدير مطلوبة.', 'All administrator fields are required.');
         } elseif ($admin_pass !== $admin_pass_confirm) {
-            $error = "Admin passwords do not match.";
+            $error = installer_tr('كلمتا مرور المدير غير متطابقتين.', 'Administrator passwords do not match.');
         } else {
             // Handle logo upload if provided
             $logoPath = '';
@@ -74,7 +86,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST') 
                 $targetDir = __DIR__ . '/../uploads/';
                 if (!is_dir($targetDir)) mkdir($targetDir, 0777, true);
                 move_uploaded_file($tmpName, $targetDir . $fileName);
-                $logoPath = '/uploads/' . $fileName;
+                $logoPath = 'uploads/' . $fileName;
             }
 
             $_SESSION['install_site'] = [
@@ -101,7 +113,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST') 
         $siteConfig = $_SESSION['install_site'] ?? null;
 
         if (!$dbConfig || !$siteConfig) {
-            $error = "Installation session expired or missing parameters. Please start again.";
+            $error = installer_tr('انتهت جلسة التثبيت أو أن بعض البيانات مفقودة. يرجى البدء من جديد.', 'The installation session expired or required information is missing. Please start again.');
         } else {
             try {
                 // Connect to DB
@@ -141,6 +153,14 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST') 
                             `original_title` TEXT DEFAULT '',
                             `type` TEXT NOT NULL,
                             `plot` TEXT DEFAULT '',
+                            `tagline` TEXT DEFAULT '',
+                            `genres` TEXT DEFAULT '',
+                            `runtime` INTEGER DEFAULT 0,
+                            `original_language` TEXT DEFAULT '',
+                            `production_countries` TEXT DEFAULT '',
+                            `release_date` TEXT DEFAULT '',
+                            `status` TEXT DEFAULT '',
+                            `imdb_id` TEXT DEFAULT '',
                             `release_year` INTEGER DEFAULT 0,
                             `rating` REAL DEFAULT 0.0,
                             `poster_path` TEXT DEFAULT '',
@@ -148,6 +168,15 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST') 
                             `tmdb_id` INTEGER DEFAULT 0,
                             `access_level` TEXT DEFAULT 'public',
                             `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP
+                        );",
+                        "CREATE TABLE IF NOT EXISTS `{$prefix}pages` (
+                            `id` INTEGER PRIMARY KEY AUTOINCREMENT,
+                            `slug` TEXT UNIQUE NOT NULL,
+                            `title` TEXT NOT NULL,
+                            `content_html` TEXT NOT NULL,
+                            `status` TEXT DEFAULT 'published',
+                            `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+                            `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP
                         );",
                         "CREATE TABLE IF NOT EXISTS `{$prefix}episodes` (
                             `id` INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -157,6 +186,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST') 
                             `title` TEXT DEFAULT '',
                             `plot` TEXT DEFAULT '',
                             `file_path` TEXT DEFAULT '',
+                            `compatibility_path` TEXT DEFAULT '',
                             `duration` INTEGER DEFAULT 0,
                             `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP
                         );",
@@ -164,6 +194,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST') 
                             `id` INTEGER PRIMARY KEY AUTOINCREMENT,
                             `media_id` INTEGER NOT NULL,
                             `file_path` TEXT NOT NULL,
+                            `compatibility_path` TEXT DEFAULT '',
                             `file_size` INTEGER DEFAULT 0,
                             `file_type` TEXT DEFAULT 'video',
                             `access_level` TEXT DEFAULT 'public',
@@ -175,6 +206,14 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST') 
                             `media_id` INTEGER NOT NULL,
                             `name` TEXT NOT NULL,
                             `character_name` TEXT DEFAULT '',
+                            `profile_path` TEXT DEFAULT ''
+                        );",
+                        "CREATE TABLE IF NOT EXISTS `{$prefix}media_crew` (
+                            `id` INTEGER PRIMARY KEY AUTOINCREMENT,
+                            `media_id` INTEGER NOT NULL,
+                            `name` TEXT NOT NULL,
+                            `department` TEXT DEFAULT '',
+                            `job` TEXT DEFAULT '',
                             `profile_path` TEXT DEFAULT ''
                         );",
                         "CREATE TABLE IF NOT EXISTS `{$prefix}settings` (
@@ -205,6 +244,14 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST') 
                             `original_title` VARCHAR(255) DEFAULT '',
                             `type` VARCHAR(20) NOT NULL,
                             `plot` TEXT,
+                            `tagline` TEXT,
+                            `genres` TEXT,
+                            `runtime` INT DEFAULT 0,
+                            `original_language` VARCHAR(16) DEFAULT '',
+                            `production_countries` TEXT,
+                            `release_date` VARCHAR(16) DEFAULT '',
+                            `status` VARCHAR(100) DEFAULT '',
+                            `imdb_id` VARCHAR(32) DEFAULT '',
                             `release_year` INT DEFAULT 0,
                             `rating` DECIMAL(3,1) DEFAULT 0.0,
                             `poster_path` VARCHAR(255) DEFAULT '',
@@ -221,6 +268,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST') 
                             `title` VARCHAR(255) DEFAULT '',
                             `plot` TEXT,
                             `file_path` VARCHAR(255) DEFAULT '',
+                            `compatibility_path` VARCHAR(255) DEFAULT '',
                             `duration` INT DEFAULT 0,
                             `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
@@ -228,6 +276,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST') 
                             `id` INT AUTO_INCREMENT PRIMARY KEY,
                             `media_id` INT NOT NULL,
                             `file_path` VARCHAR(255) NOT NULL,
+                            `compatibility_path` VARCHAR(255) DEFAULT '',
                             `file_size` BIGINT DEFAULT 0,
                             `file_type` VARCHAR(20) DEFAULT 'video',
                             `access_level` VARCHAR(20) DEFAULT 'public',
@@ -241,9 +290,28 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST') 
                             `character_name` VARCHAR(100) DEFAULT '',
                             `profile_path` VARCHAR(255) DEFAULT ''
                         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+                        "CREATE TABLE IF NOT EXISTS `{$prefix}media_crew` (
+                            `id` INT AUTO_INCREMENT PRIMARY KEY,
+                            `media_id` INT NOT NULL,
+                            `name` VARCHAR(255) NOT NULL,
+                            `department` VARCHAR(255) DEFAULT '',
+                            `job` VARCHAR(255) DEFAULT '',
+                            `profile_path` VARCHAR(255) DEFAULT '',
+                            INDEX (`media_id`)
+                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
                         "CREATE TABLE IF NOT EXISTS `{$prefix}settings` (
                             `setting_key` VARCHAR(50) PRIMARY KEY,
                             `setting_value` TEXT
+                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;"
+                        ,
+                        "CREATE TABLE IF NOT EXISTS `{$prefix}pages` (
+                            `id` INT AUTO_INCREMENT PRIMARY KEY,
+                            `slug` VARCHAR(160) UNIQUE NOT NULL,
+                            `title` VARCHAR(255) NOT NULL,
+                            `content_html` MEDIUMTEXT NOT NULL,
+                            `status` VARCHAR(20) DEFAULT 'published',
+                            `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
                         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;"
                     ];
                 }
@@ -267,16 +335,33 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST') 
                     $stmtCat->execute($cat);
                 }
 
-                // Insert Admin User
-                $adminPassHash = password_hash($siteConfig['admin_pass'], PASSWORD_BCRYPT);
-                $stmtUser = $pdo->prepare("INSERT INTO `{$prefix}users` (username, email, password, role) VALUES (?, ?, ?, 'admin')");
-                $stmtUser->execute([$siteConfig['admin_user'], $siteConfig['admin_email'], $adminPassHash]);
+                // Reuse the admin created by an earlier incomplete install attempt.
+                $stmtUser = $pdo->prepare("SELECT id, username, email, role FROM `{$prefix}users` WHERE username = ? OR email = ?");
+                $stmtUser->execute([$siteConfig['admin_user'], $siteConfig['admin_email']]);
+                $existingAdmin = $stmtUser->fetch(PDO::FETCH_ASSOC);
+
+                if ($existingAdmin) {
+                    if (
+                        $existingAdmin['username'] !== $siteConfig['admin_user']
+                        || $existingAdmin['email'] !== $siteConfig['admin_email']
+                        || $existingAdmin['role'] !== 'admin'
+                    ) {
+                        throw new RuntimeException(
+                            'The configured admin username or email already belongs to a different account. Return to step 3 and choose unused admin details.'
+                        );
+                    }
+                } else {
+                    $adminPassHash = password_hash($siteConfig['admin_pass'], PASSWORD_BCRYPT);
+                    $stmtUser = $pdo->prepare("INSERT INTO `{$prefix}users` (username, email, password, role) VALUES (?, ?, ?, 'admin')");
+                    $stmtUser->execute([$siteConfig['admin_user'], $siteConfig['admin_email'], $adminPassHash]);
+                }
 
                 // Insert Settings
                 $settings = [
                     'site_name' => $siteConfig['site_name'],
                     'site_logo' => $siteConfig['logo'],
                     'tmdb_api_key' => $tmdb_api_key,
+                    'ffmpeg_path' => '',
                     'installed_at' => date('Y-m-d H:i:s')
                 ];
                 $stmtSet = $pdo->prepare("REPLACE INTO `{$prefix}settings` (setting_key, setting_value) VALUES (?, ?)");
@@ -296,6 +381,10 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST') 
                 $configContent .= "define('DB_USER', " . var_export($dbConfig['user'], true) . ");\n";
                 $configContent .= "define('DB_PASS', " . var_export($dbConfig['pass'], true) . ");\n";
                 $configContent .= "define('DB_PREFIX', " . var_export($prefix, true) . ");\n";
+                $configContent .= "define('AD_SLOT_HEADER', '');\n";
+                $configContent .= "define('AD_SLOT_CONTENT_TOP', '');\n";
+                $configContent .= "define('AD_SLOT_CONTENT_BOTTOM', '');\n";
+                $configContent .= "define('AD_SLOT_FOOTER', '');\n";
 
                 file_put_contents(__DIR__ . '/../config.php', $configContent);
 
@@ -307,7 +396,8 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST') 
                     exit;
                 }
             } catch (Exception $e) {
-                $error = "Installation Failed: " . $e->getMessage();
+                error_log('Installer setup failed: ' . $e->getMessage());
+                $error = installer_tr('فشل التثبيت. راجع سجل الأخطاء لمزيد من التفاصيل.', 'Installation failed. Check the error log for details.');
             }
         }
     }
@@ -315,11 +405,11 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST') 
 
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="<?= htmlspecialchars($installerLanguage, ENT_QUOTES, 'UTF-8') ?>" dir="<?= $installerLanguage === 'ar' ? 'rtl' : 'ltr' ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CinemaCMS Web Installer</title>
+    <title>CinemaCMS - <?= htmlspecialchars(installer_tr('معالج التثبيت', 'Web installer'), ENT_QUOTES, 'UTF-8') ?></title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #0f172a; color: #f8fafc; padding: 2rem 1rem; }
@@ -360,30 +450,30 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST') 
 
 <div class="installer-card">
     <div class="header">
-        <h1>CinemaCMS Installation Wizard</h1>
-        <p>Step-by-step graphical installer</p>
+        <h1>CinemaCMS - <?= htmlspecialchars(installer_tr('معالج التثبيت', 'Installation wizard'), ENT_QUOTES, 'UTF-8') ?></h1>
+        <p><?= htmlspecialchars(installer_tr('خطوات مرئية لإعداد الموقع', 'Step-by-step graphical installer'), ENT_QUOTES, 'UTF-8') ?></p>
     </div>
 
     <div class="steps-bar">
         <div class="step-item <?= $step >= 1 ? ($step == 1 ? 'active' : 'done') : '' ?>">
             <div class="step-circle">1</div>
-            <div class="step-label">Requirements</div>
+            <div class="step-label"><?= htmlspecialchars(installer_tr('المتطلبات', 'Requirements'), ENT_QUOTES, 'UTF-8') ?></div>
         </div>
         <div class="step-item <?= $step >= 2 ? ($step == 2 ? 'active' : 'done') : '' ?>">
             <div class="step-circle">2</div>
-            <div class="step-label">Database</div>
+            <div class="step-label"><?= htmlspecialchars(installer_tr('قاعدة البيانات', 'Database'), ENT_QUOTES, 'UTF-8') ?></div>
         </div>
         <div class="step-item <?= $step >= 3 ? ($step == 3 ? 'active' : 'done') : '' ?>">
             <div class="step-circle">3</div>
-            <div class="step-label">Site Setup</div>
+            <div class="step-label"><?= htmlspecialchars(installer_tr('إعداد الموقع', 'Site setup'), ENT_QUOTES, 'UTF-8') ?></div>
         </div>
         <div class="step-item <?= $step >= 4 ? ($step == 4 ? 'active' : 'done') : '' ?>">
             <div class="step-circle">4</div>
-            <div class="step-label">API Config</div>
+            <div class="step-label"><?= htmlspecialchars(installer_tr('إعدادات API', 'API settings'), ENT_QUOTES, 'UTF-8') ?></div>
         </div>
         <div class="step-item <?= $step >= 5 ? 'active' : '' ?>">
             <div class="step-circle">5</div>
-            <div class="step-label">Finish</div>
+            <div class="step-label"><?= htmlspecialchars(installer_tr('الإنهاء', 'Finish'), ENT_QUOTES, 'UTF-8') ?></div>
         </div>
     </div>
 
@@ -394,69 +484,69 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST') 
     <?php if ($step == 1): ?>
         <?php
         $checks = [
-            'PHP Version >= 8.0' => version_compare(PHP_VERSION, '8.0.0', '>='),
-            'PDO Extension' => extension_loaded('pdo'),
-            'PDO SQLite or MySQL' => extension_loaded('pdo_sqlite') || extension_loaded('pdo_mysql'),
-            'cURL Extension' => extension_loaded('curl') || ini_get('allow_url_fopen'),
-            'Uploads Directory Writable' => is_writable(__DIR__ . '/../uploads') || is_writable(__DIR__ . '/..'),
-            'Cache Directory Writable' => is_writable(__DIR__ . '/../cache') || is_writable(__DIR__ . '/..'),
-            'Root Directory Writable' => is_writable(__DIR__ . '/..')
+            installer_tr('إصدار PHP >= 8.0', 'PHP version >= 8.0') => version_compare(PHP_VERSION, '8.0.0', '>='),
+            installer_tr('امتداد PDO', 'PDO extension') => extension_loaded('pdo'),
+            installer_tr('PDO مع SQLite أو MySQL', 'PDO with SQLite or MySQL') => extension_loaded('pdo_sqlite') || extension_loaded('pdo_mysql'),
+            installer_tr('امتداد cURL', 'cURL extension') => extension_loaded('curl') || ini_get('allow_url_fopen'),
+            installer_tr('صلاحية الكتابة في مجلد الرفع', 'Uploads directory writable') => is_writable(__DIR__ . '/../uploads') || is_writable(__DIR__ . '/..'),
+            installer_tr('صلاحية الكتابة في مجلد التخزين المؤقت', 'Cache directory writable') => is_writable(__DIR__ . '/../cache') || is_writable(__DIR__ . '/..'),
+            installer_tr('صلاحية الكتابة في المجلد الرئيسي', 'Root directory writable') => is_writable(__DIR__ . '/..')
         ];
         $allPassed = !in_array(false, $checks, true);
         ?>
-        <h2 style="font-size: 1.2rem; margin-bottom: 1rem;">System Requirements & Permissions Check</h2>
+        <h2 style="font-size: 1.2rem; margin-bottom: 1rem;"><?= htmlspecialchars(installer_tr('متطلبات النظام وفحص الصلاحيات', 'System requirements and permissions check'), ENT_QUOTES, 'UTF-8') ?></h2>
         <ul class="req-list">
             <?php foreach ($checks as $label => $pass): ?>
                 <li class="req-item">
                     <span><?= htmlspecialchars($label) ?></span>
                     <span class="badge <?= $pass ? 'badge-success' : 'badge-danger' ?>">
-                        <?= $pass ? 'PASSED' : 'FAILED' ?>
+                        <?= htmlspecialchars($pass ? installer_tr('ناجح', 'Passed') : installer_tr('فشل', 'Failed'), ENT_QUOTES, 'UTF-8') ?>
                     </span>
                 </li>
             <?php endforeach; ?>
         </ul>
 
         <?php if ($allPassed): ?>
-            <a href="index.php?step=2" class="btn">Continue to Database Setup &rarr;</a>
+            <a href="index.php?step=2" class="btn"><?= htmlspecialchars(installer_tr('متابعة إعداد قاعدة البيانات', 'Continue to database setup'), ENT_QUOTES, 'UTF-8') ?> &rarr;</a>
         <?php else: ?>
-            <div class="alert alert-danger">Please fix directory permissions and missing PHP extensions before proceeding.</div>
+            <div class="alert alert-danger"><?= htmlspecialchars(installer_tr('يرجى إصلاح صلاحيات المجلدات وتفعيل امتدادات PHP المطلوبة قبل المتابعة.', 'Please fix directory permissions and enable the required PHP extensions before proceeding.'), ENT_QUOTES, 'UTF-8') ?></div>
         <?php endif; ?>
 
     <?php elseif ($step == 2): ?>
-        <h2 style="font-size: 1.2rem; margin-bottom: 1rem;">Database Configuration</h2>
+        <h2 style="font-size: 1.2rem; margin-bottom: 1rem;"><?= htmlspecialchars(installer_tr('إعداد قاعدة البيانات', 'Database configuration'), ENT_QUOTES, 'UTF-8') ?></h2>
         <form method="POST">
             <input type="hidden" name="step_2" value="1">
             <div class="form-group">
-                <label>Database Engine</label>
+                <label><?= htmlspecialchars(installer_tr('نوع قاعدة البيانات', 'Database engine'), ENT_QUOTES, 'UTF-8') ?></label>
                 <select name="db_driver" class="form-control" onchange="toggleDbFields(this.value)">
                     <option value="mysql">MySQL / MariaDB</option>
-                    <option value="sqlite">SQLite (File-based DB, zero config needed)</option>
+                    <option value="sqlite">SQLite (<?= htmlspecialchars(installer_tr('قاعدة بيانات ملفية، لا تحتاج إلى إعداد', 'file-based database, no configuration required'), ENT_QUOTES, 'UTF-8') ?>)</option>
                 </select>
             </div>
             <div id="mysql-fields">
                 <div class="form-group">
-                    <label>Database Host</label>
+                    <label><?= htmlspecialchars(installer_tr('مضيف قاعدة البيانات', 'Database host'), ENT_QUOTES, 'UTF-8') ?></label>
                     <input type="text" name="db_host" class="form-control" value="127.0.0.1">
                 </div>
                 <div class="form-group">
-                    <label>Database Name</label>
+                    <label><?= htmlspecialchars(installer_tr('اسم قاعدة البيانات', 'Database name'), ENT_QUOTES, 'UTF-8') ?></label>
                     <input type="text" name="db_name" class="form-control" value="cinemacms">
                 </div>
                 <div class="form-group">
-                    <label>Database User</label>
+                    <label><?= htmlspecialchars(installer_tr('مستخدم قاعدة البيانات', 'Database user'), ENT_QUOTES, 'UTF-8') ?></label>
                     <input type="text" name="db_user" class="form-control" value="root">
                 </div>
                 <div class="form-group">
-                    <label>Database Password</label>
+                    <label><?= htmlspecialchars(installer_tr('كلمة مرور قاعدة البيانات', 'Database password'), ENT_QUOTES, 'UTF-8') ?></label>
                     <input type="password" name="db_pass" class="form-control" value="">
                 </div>
             </div>
             <div class="form-group">
-                <label>Table Prefix</label>
+                <label><?= htmlspecialchars(installer_tr('بادئة الجداول', 'Table prefix'), ENT_QUOTES, 'UTF-8') ?></label>
                 <input type="text" name="db_prefix" class="form-control" value="cms_">
-                <div class="help-text">Prefix for all database tables (e.g. cms_)</div>
+                <div class="help-text"><?= htmlspecialchars(installer_tr('بادئة تُضاف إلى أسماء جميع جداول قاعدة البيانات (مثال: cms_).', 'Prefix added to all database table names (e.g. cms_).'), ENT_QUOTES, 'UTF-8') ?></div>
             </div>
-            <button type="submit" class="btn">Test Connection & Continue &rarr;</button>
+            <button type="submit" class="btn"><?= htmlspecialchars(installer_tr('اختبار الاتصال والمتابعة', 'Test connection and continue'), ENT_QUOTES, 'UTF-8') ?> &rarr;</button>
         </form>
         <script>
         function toggleDbFields(val) {
@@ -465,57 +555,57 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST') 
         </script>
 
     <?php elseif ($step == 3): ?>
-        <h2 style="font-size: 1.2rem; margin-bottom: 1rem;">Site & Admin Account Setup</h2>
+        <h2 style="font-size: 1.2rem; margin-bottom: 1rem;"><?= htmlspecialchars(installer_tr('إعداد الموقع وحساب المدير', 'Site and administrator account setup'), ENT_QUOTES, 'UTF-8') ?></h2>
         <form method="POST" enctype="multipart/form-data">
             <input type="hidden" name="step_3" value="1">
             <div class="form-group">
-                <label>Website Name</label>
+                <label><?= htmlspecialchars(installer_tr('اسم الموقع', 'Website name'), ENT_QUOTES, 'UTF-8') ?></label>
                 <input type="text" name="site_name" class="form-control" value="CinemaCMS" required>
             </div>
             <div class="form-group">
-                <label>Site Logo (Optional)</label>
+                <label><?= htmlspecialchars(installer_tr('شعار الموقع (اختياري)', 'Site logo (optional)'), ENT_QUOTES, 'UTF-8') ?></label>
                 <input type="file" name="site_logo" class="form-control" accept="image/*">
             </div>
             <hr style="border-color: #334155; margin: 1.5rem 0;">
             <div class="form-group">
-                <label>Admin Username</label>
+                <label><?= htmlspecialchars(installer_tr('اسم مستخدم المدير', 'Administrator username'), ENT_QUOTES, 'UTF-8') ?></label>
                 <input type="text" name="admin_user" class="form-control" value="admin" required>
             </div>
             <div class="form-group">
-                <label>Admin Email</label>
+                <label><?= htmlspecialchars(installer_tr('البريد الإلكتروني للمدير', 'Administrator email'), ENT_QUOTES, 'UTF-8') ?></label>
                 <input type="email" name="admin_email" class="form-control" value="admin@example.com" required>
             </div>
             <div class="form-group">
-                <label>Admin Password</label>
+                <label><?= htmlspecialchars(installer_tr('كلمة مرور المدير', 'Administrator password'), ENT_QUOTES, 'UTF-8') ?></label>
                 <input type="password" name="admin_pass" class="form-control" required>
             </div>
             <div class="form-group">
-                <label>Confirm Admin Password</label>
+                <label><?= htmlspecialchars(installer_tr('تأكيد كلمة مرور المدير', 'Confirm administrator password'), ENT_QUOTES, 'UTF-8') ?></label>
                 <input type="password" name="admin_pass_confirm" class="form-control" required>
             </div>
-            <button type="submit" class="btn">Continue to API Config &rarr;</button>
+            <button type="submit" class="btn"><?= htmlspecialchars(installer_tr('متابعة إلى إعدادات API', 'Continue to API settings'), ENT_QUOTES, 'UTF-8') ?> &rarr;</button>
         </form>
 
     <?php elseif ($step == 4): ?>
-        <h2 style="font-size: 1.2rem; margin-bottom: 1rem;">API & Integration Configuration</h2>
+        <h2 style="font-size: 1.2rem; margin-bottom: 1rem;"><?= htmlspecialchars(installer_tr('إعداد API والربط بالخدمات', 'API and integration settings'), ENT_QUOTES, 'UTF-8') ?></h2>
         <form method="POST">
             <input type="hidden" name="step_4" value="1">
             <div class="form-group">
-                <label>TMDB (The Movie Database) API Key (Optional)</label>
-                <input type="text" name="tmdb_api_key" class="form-control" placeholder="e.g. 1a2b3c4d5e6f...">
-                <div class="help-text">Used to automatically scrape movie & TV metadata, posters, backdrops, and cast details. You can configure or change this key later in the Admin Panel.</div>
+                <label><?= htmlspecialchars(installer_tr('مفتاح TMDB (اختياري)', 'TMDB API key (optional)'), ENT_QUOTES, 'UTF-8') ?></label>
+                <input type="text" name="tmdb_api_key" class="form-control" placeholder="<?= htmlspecialchars(installer_tr('أدخل مفتاح الخدمة', 'Enter the API key'), ENT_QUOTES, 'UTF-8') ?>">
+                <div class="help-text"><?= htmlspecialchars(installer_tr('يُستخدم لجلب بيانات الأفلام والمسلسلات والملصقات والخلفيات وطاقم العمل تلقائيًا. يمكنك إضافة المفتاح أو تغييره لاحقًا من لوحة الإدارة.', 'Used to fetch movie and TV metadata, posters, backdrops, and cast details. You can add or change this key later in the Admin Panel.'), ENT_QUOTES, 'UTF-8') ?></div>
             </div>
-            <button type="submit" class="btn" style="background: #16a34a;">Run Installation Now &rarr;</button>
+            <button type="submit" class="btn" style="background: #16a34a;"><?= htmlspecialchars(installer_tr('بدء التثبيت الآن', 'Run installation now'), ENT_QUOTES, 'UTF-8') ?> &rarr;</button>
         </form>
 
     <?php elseif ($step == 5): ?>
         <div style="text-align: center; padding: 1rem 0;">
             <div style="font-size: 3rem; color: #16a34a; margin-bottom: 0.5rem;">✓</div>
-            <h2 style="font-size: 1.5rem; margin-bottom: 0.5rem;">Installation Complete!</h2>
-            <p style="color: #94a3b8; margin-bottom: 1.5rem;">CinemaCMS has been successfully installed and configured. Database tables were created and admin user was set up.</p>
+            <h2 style="font-size: 1.5rem; margin-bottom: 0.5rem;"><?= htmlspecialchars(installer_tr('اكتمل التثبيت!', 'Installation complete!'), ENT_QUOTES, 'UTF-8') ?></h2>
+            <p style="color: #94a3b8; margin-bottom: 1.5rem;"><?= htmlspecialchars(installer_tr('تم تثبيت CinemaCMS وإعداده بنجاح. أُنشئت جداول قاعدة البيانات وأُعد حساب المدير.', 'CinemaCMS has been installed and configured successfully. Database tables were created and the administrator account was set up.'), ENT_QUOTES, 'UTF-8') ?></p>
             <div style="display: flex; gap: 1rem;">
-                <a href="/index.php" class="btn">Visit Website</a>
-                <a href="/admin/index.php" class="btn" style="background: #0284c7;">Go to Admin Panel</a>
+                <a href="<?= htmlspecialchars(site_url('index.php'), ENT_QUOTES, 'UTF-8') ?>" class="btn"><?= htmlspecialchars(installer_tr('زيارة الموقع', 'Visit website'), ENT_QUOTES, 'UTF-8') ?></a>
+                <a href="<?= htmlspecialchars(site_url('admin/index.php'), ENT_QUOTES, 'UTF-8') ?>" class="btn" style="background: #0284c7;"><?= htmlspecialchars(installer_tr('الذهاب إلى لوحة الإدارة', 'Go to Admin Panel'), ENT_QUOTES, 'UTF-8') ?></a>
             </div>
         </div>
     <?php endif; ?>

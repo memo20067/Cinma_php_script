@@ -43,26 +43,52 @@ if ($episodeId) {
 
 if (empty($filePath) || !file_exists($filePath)) {
     http_response_code(404);
-    die("Error: Downloadable file does not exist on server.");
+    die(sanitize(tr('خطأ: ملف التنزيل غير موجود على الخادم.', 'Error: Downloadable file does not exist on the server.')));
 }
 
 // Role-Based Access Control Verification
 if (!check_permission($accessLevel)) {
-    $roleName = ucfirst($accessLevel);
-    render_header("Access Denied");
+    $roleName = [
+        'public' => tr('عام', 'Public'),
+        'registered' => tr('عضو مسجل', 'Registered member'),
+        'subscriber' => tr('مشترك', 'Subscriber')
+    ][$accessLevel] ?? tr('مقيد', 'Restricted');
+    $currentRole = [
+        'superuser' => tr('مدير عام', 'Superuser'),
+        'admin' => tr('مدير', 'Administrator'),
+        'moderator' => tr('مشرف', 'Moderator'),
+        'subscriber' => tr('مشترك', 'Subscriber'),
+        'registered' => tr('عضو مسجل', 'Registered member')
+    ][user_role()] ?? tr('زائر', 'Guest');
+    render_header(tr('تم رفض الوصول', 'Access Denied'));
     ?>
     <div style="max-width: 600px; margin: 3rem auto; background: #1e293b; padding: 2rem; border-radius: 8px; border: 1px solid #334155; text-align: center;">
-        <h2 style="color: #ef4444; margin-bottom: 1rem;">Access Restricted</h2>
-        <p style="margin-bottom: 1.5rem; color: #94a3b8;">This downloadable file requires <strong><?= $roleName ?></strong> access level. You are currently logged in as <strong><?= ucfirst(user_role()) ?></strong>.</p>
+        <h2 style="color: #ef4444; margin-bottom: 1rem;"><?= sanitize(tr('الوصول إلى الملف مقيد', 'Access Restricted')) ?></h2>
+        <p style="margin-bottom: 1.5rem; color: #94a3b8;"><?= sanitize(sprintf(tr(
+            'يتطلب هذا الملف صلاحية %s. صلاحيتك الحالية هي %s.',
+            'This downloadable file requires %s access. Your current role is %s.'
+        ), $roleName, $currentRole)) ?></p>
         <?php if (!is_logged_in()): ?>
-            <a href="/login.php" class="btn btn-primary">Log In To Access</a>
+            <a href="<?= sanitize(site_url('login.php')) ?>" class="btn btn-primary"><?= sanitize(tr('سجّل الدخول للمتابعة', 'Log In To Access')) ?></a>
         <?php else: ?>
-            <p style="font-size: 0.9rem; color: #64748b;">Please upgrade your account subscription to access this content.</p>
+            <p style="font-size: 0.9rem; color: #64748b;"><?= sanitize(tr('يرجى ترقية اشتراك حسابك للوصول إلى هذا المحتوى.', 'Please upgrade your account subscription to access this content.')) ?></p>
         <?php endif; ?>
     </div>
     <?php
     render_footer();
     exit;
+}
+
+if (isset($_GET['quality'])) {
+    $quality = is_string($_GET['quality']) ? $_GET['quality'] : '';
+    $renditions = get_video_renditions($filePath);
+    if (!preg_match('/^[0-9]{3,4}p$/', $quality) || !isset($renditions['qualities'][$quality])) {
+        http_response_code(404);
+        die(sanitize(tr('خطأ: جودة الفيديو المطلوبة غير متاحة.', 'Error: Requested video quality is not available.')));
+    }
+    $filePath = $renditions['qualities'][$quality];
+    $pathInfo = pathinfo($filename);
+    $filename = ($pathInfo['filename'] ?? 'video') . '_' . $quality . '.mp4';
 }
 
 // Increment download count if media_files record exists

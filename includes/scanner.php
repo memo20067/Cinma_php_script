@@ -3,11 +3,16 @@
 
 class MediaScanner {
 
-    private static $allowedExtensions = ['mp4', 'mkv', 'avi', 'mov', 'wmv', 'flv', 'webm', 'zip', 'rar', 'exe', 'iso'];
+    private static $allowedExtensions = ['mp4', 'm4v', 'mkv', 'avi', 'mov', 'wmv', 'flv', 'webm', 'zip', '7z', 'rar', 'tar', 'gz', 'exe', 'msi', 'apk', 'dmg', 'deb', 'rpm', 'pkg', 'iso', 'pdf'];
+    private static $videoExtensions = ['mp4', 'm4v', 'mkv', 'avi', 'mov', 'wmv', 'flv', 'webm'];
 
     public static function scanDirectory($dirPath) {
         $realPath = realpath($dirPath);
-        if (!$realPath || !is_dir($realPath)) {
+        $uploadsRoot = realpath(__DIR__ . '/../uploads');
+        if (!$realPath || !$uploadsRoot || !is_dir($realPath)
+            || strncasecmp($realPath, $uploadsRoot, strlen($uploadsRoot)) !== 0
+            || (strlen($realPath) > strlen($uploadsRoot)
+                && substr($realPath, strlen($uploadsRoot), 1) !== DIRECTORY_SEPARATOR)) {
             return [];
         }
 
@@ -29,7 +34,7 @@ class MediaScanner {
                         'file_name' => $item->getFilename(),
                         'file_size' => $item->getSize(),
                         'extension' => $ext,
-                        'is_video' => in_array($ext, ['mp4', 'mkv', 'avi', 'mov', 'wmv', 'flv', 'webm']),
+                        'is_video' => in_array($ext, self::$videoExtensions, true),
                         'parsed_title' => $parsed['title'],
                         'season' => $parsed['season'],
                         'episode' => $parsed['episode']

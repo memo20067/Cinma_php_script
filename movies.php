@@ -3,42 +3,46 @@
 
 require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/functions.php';
+ensure_media_details_schema();
 
-$movies = DB::fetchAll("SELECT * FROM {prefix}media WHERE type = 'movie' ORDER BY id DESC");
+$category = isset($_GET['category']) && is_string($_GET['category']) ? trim($_GET['category']) : '';
+$movieSql =
+    "SELECT m.*,
+        (SELECT mf.id FROM {prefix}media_files mf WHERE mf.media_id = m.id ORDER BY mf.id LIMIT 1) AS download_file_id
+     FROM {prefix}media m WHERE m.type = 'movie'";
+$movieParams = [];
+if ($category !== '') {
+    $movieSql .= ' AND m.content_category = ?';
+    $movieParams[] = $category;
+}
+$movies = DB::fetchAll($movieSql . ' ORDER BY m.content_category, m.id DESC', $movieParams);
+$movieGroups = [];
+foreach ($movies as $movie) {
+    $groupName = trim((string)($movie['content_category'] ?? ''));
+    $movieGroups[$groupName !== '' ? $groupName : tr('غير مصنف', 'Uncategorized')][] = $movie;
+}
 
-render_header("Movies Library");
+render_header(tr('مكتبة الأفلام', 'Movies Library'));
 ?>
 
 <div style="margin-bottom: 1.5rem;">
-    <h1 style="color: #38bdf8;">Movies Library</h1>
-    <p style="color: #94a3b8;">Stream HD uploaded movies directly from local server storage.</p>
+    <h1 style="color: #38bdf8;"><?= sanitize($category !== '' ? $category : tr('مكتبة الأفلام', 'Movies Library')) ?></h1>
+    <p style="color: #94a3b8;"><?= sanitize($category !== '' ? tr('الأفلام في هذا التصنيف', 'Movies in this category') : tr('جميع الأفلام المتاحة', 'All available movies')) ?></p>
 </div>
 
 <?php if (empty($movies)): ?>
-    <div class="alert alert-info">No movies found in the database.</div>
+    <div class="alert alert-info"><?= sanitize(tr('لا توجد أفلام في قاعدة البيانات.', 'No movies found in the database.')) ?></div>
 <?php else: ?>
-    <div class="grid">
-        <?php foreach ($movies as $movie): ?>
-            <div class="media-card">
-                <a href="/watch.php?id=<?= $movie['id'] ?>">
-                    <?php if (!empty($movie['poster_path'])): ?>
-                        <img src="<?= sanitize($movie['poster_path']) ?>" class="media-poster">
-                    <?php else: ?>
-                        <div class="media-poster" style="display:flex; align-items:center; justify-content:center; color:#64748b;">No Poster</div>
-                    <?php endif; ?>
-                </a>
-                <div class="media-info">
-                    <div class="media-title">
-                        <a href="/watch.php?id=<?= $movie['id'] ?>"><?= sanitize($movie['title']) ?></a>
-                    </div>
-                    <div class="media-meta">
-                        <span><?= $movie['release_year'] ?></span>
-                        <span class="badge badge-<?= $movie['access_level'] ?>"><?= ucfirst($movie['access_level']) ?></span>
-                    </div>
-                </div>
+    <?php foreach ($movieGroups as $groupName => $groupMovies): ?>
+        <section class="media-category-group">
+            <h2><?= sanitize($groupName) ?></h2>
+            <div class="grid">
+                <?php foreach ($groupMovies as $movie): ?>
+                    <?php render_media_card($movie); ?>
+                <?php endforeach; ?>
             </div>
-        <?php endforeach; ?>
-    </div>
+        </section>
+    <?php endforeach; ?>
 <?php endif; ?>
 
 <?php

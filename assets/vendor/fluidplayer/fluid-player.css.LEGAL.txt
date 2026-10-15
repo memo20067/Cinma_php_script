@@ -1,0 +1,16 @@
+Bundled license information:
+
+@photo-sphere-viewer/core/index.css:
+  /*!
+   * Photo Sphere Viewer 5.15.1
+   * @copyright 2014-2015 Jérémy Heleine
+   * @copyright 2015-2026 Damien "Mistic" Sorel
+   * @licence MIT (https://opensource.org/licenses/MIT)
+   */
+
+@photo-sphere-viewer/video-plugin/index.css:
+  /*!
+   * Photo Sphere Viewer / Video Plugin 5.15.1
+   * @copyright 2015-2026 Damien "Mistic" Sorel
+   * @licence MIT (https://opensource.org/licenses/MIT)
+   */

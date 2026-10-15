@@ -1,0 +1,20 @@
+{
+  "name": "cinemacms-player-assets",
+  "private": true,
+  "description": "Reproducible local browser player assets for CinemaCMS",
+  "scripts": {
+    "build:player-assets": "node tools/build-player-assets.mjs"
+  },
+  "dependencies": {
+    "@clappr/player": "0.14.7",
+    "@vidstack/player": "0.13.3",
+    "fluid-player": "3.60.0",
+    "mediaelement": "7.1.0",
+    "plyr": "3.8.5",
+    "shaka-player": "5.2.13",
+    "video.js": "8.24.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
+  }
+}

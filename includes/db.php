@@ -1,10 +1,38 @@
 <?php
 // Database Connection Wrapper
 
+function site_url($path = '') {
+    static $basePath = null;
+
+    if ($basePath === null) {
+        $basePath = '';
+        $documentRoot = isset($_SERVER['DOCUMENT_ROOT']) ? realpath($_SERVER['DOCUMENT_ROOT']) : false;
+        $projectRoot = realpath(__DIR__ . '/..');
+
+        if ($documentRoot && $projectRoot) {
+            $documentRoot = rtrim(str_replace('\\', '/', $documentRoot), '/');
+            $projectRoot = str_replace('\\', '/', $projectRoot);
+            if (stripos($projectRoot, $documentRoot . '/') === 0) {
+                $basePath = substr($projectRoot, strlen($documentRoot));
+            }
+        }
+    }
+
+    $path = trim((string)$path);
+    if ($path === '') {
+        return $basePath . '/';
+    }
+    if (preg_match('~^(?:[a-z][a-z0-9+.-]*:|//)~i', $path)) {
+        return $path;
+    }
+
+    return $basePath . '/' . ltrim($path, '/');
+}
+
 if (!file_exists(__DIR__ . '/../config.php')) {
     // If config.php doesn't exist, redirect to installer if accessed via browser
     if (php_sapi_name() !== 'cli' && strpos($_SERVER['REQUEST_URI'], '/installer/') === false) {
-        header('Location: /installer/index.php');
+        header('Location: ' . site_url('installer/index.php'));
         exit;
     }
 } else {
@@ -30,13 +58,23 @@ class DB {
 
         try {
             if ($driver === 'sqlite' || strpos($host, 'sqlite:') === 0) {
-                $dbFile = ($driver === 'sqlite' && strpos($host, 'sqlite:') !== 0) ? $host : str_replace('sqlite:', '', $host);
+                $dbFile = $dbname;
+                if (strpos($dbFile, 'sqlite:') === 0) {
+                    $dbFile = substr($dbFile, strlen('sqlite:'));
+                }
+                if (empty($dbFile) || $dbFile === 'localhost') {
+                    if (strpos($host, 'sqlite:') === 0) {
+                        $dbFile = substr($host, strlen('sqlite:'));
+                    } elseif ($driver === 'sqlite' && $host !== '' && $host !== 'localhost') {
+                        $dbFile = $host;
+                    }
+                }
                 if (empty($dbFile) || $dbFile === 'localhost') {
                     $dbFile = __DIR__ . '/../data/database.sqlite';
-                    $dir = dirname($dbFile);
-                    if (!is_dir($dir)) {
-                        mkdir($dir, 0777, true);
-                    }
+                }
+                $dir = dirname($dbFile);
+                if (!is_dir($dir)) {
+                    mkdir($dir, 0777, true);
                 }
                 $this->pdo = new PDO("sqlite:" . $dbFile);
             } else {

@@ -3,42 +3,47 @@
 
 require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/functions.php';
+ensure_media_details_schema();
 
-$shows = DB::fetchAll("SELECT m.*, (SELECT COUNT(*) FROM {prefix}episodes WHERE media_id = m.id) as ep_count FROM {prefix}media m WHERE m.type = 'tv' ORDER BY m.id DESC");
+$category = isset($_GET['category']) && is_string($_GET['category']) ? trim($_GET['category']) : '';
+$showsSql =
+    "SELECT m.*,
+        (SELECT COUNT(*) FROM {prefix}episodes e WHERE e.media_id = m.id) AS ep_count,
+        (SELECT e.id FROM {prefix}episodes e WHERE e.media_id = m.id ORDER BY e.season_number, e.episode_number LIMIT 1) AS download_episode_id
+     FROM {prefix}media m WHERE m.type = 'tv'";
+$showsParams = [];
+if ($category !== '') {
+    $showsSql .= ' AND m.content_category = ?';
+    $showsParams[] = $category;
+}
+$shows = DB::fetchAll($showsSql . ' ORDER BY m.content_category, m.id DESC', $showsParams);
+$showGroups = [];
+foreach ($shows as $show) {
+    $groupName = trim((string)($show['content_category'] ?? ''));
+    $showGroups[$groupName !== '' ? $groupName : tr('غير مصنف', 'Uncategorized')][] = $show;
+}
 
-render_header("TV Series Library");
+render_header(tr('مكتبة المسلسلات', 'TV Series Library'));
 ?>
 
 <div style="margin-bottom: 1.5rem;">
-    <h1 style="color: #10b981;">TV Series Library</h1>
-    <p style="color: #94a3b8;">Browse TV shows and organized seasons/episodes.</p>
+    <h1 style="color: #10b981;"><?= sanitize($category !== '' ? $category : tr('مكتبة المسلسلات', 'TV Series Library')) ?></h1>
+    <p style="color: #94a3b8;"><?= sanitize($category !== '' ? tr('المسلسلات في هذا التصنيف', 'Series in this category') : tr('تصفح المسلسلات والمواسم والحلقات', 'Browse series, seasons, and episodes')) ?></p>
 </div>
 
 <?php if (empty($shows)): ?>
-    <div class="alert alert-info">No TV series found in the database.</div>
+    <div class="alert alert-info"><?= sanitize(tr('لا توجد مسلسلات في قاعدة البيانات.', 'No TV series found in the database.')) ?></div>
 <?php else: ?>
-    <div class="grid">
-        <?php foreach ($shows as $show): ?>
-            <div class="media-card">
-                <a href="/show.php?id=<?= $show['id'] ?>">
-                    <?php if (!empty($show['poster_path'])): ?>
-                        <img src="<?= sanitize($show['poster_path']) ?>" class="media-poster">
-                    <?php else: ?>
-                        <div class="media-poster" style="display:flex; align-items:center; justify-content:center; color:#64748b;">No Poster</div>
-                    <?php endif; ?>
-                </a>
-                <div class="media-info">
-                    <div class="media-title">
-                        <a href="/show.php?id=<?= $show['id'] ?>"><?= sanitize($show['title']) ?></a>
-                    </div>
-                    <div class="media-meta">
-                        <span><?= $show['ep_count'] ?> Episode(s)</span>
-                        <span class="badge badge-<?= $show['access_level'] ?>"><?= ucfirst($show['access_level']) ?></span>
-                    </div>
-                </div>
+    <?php foreach ($showGroups as $groupName => $groupShows): ?>
+        <section class="media-category-group">
+            <h2><?= sanitize($groupName) ?></h2>
+            <div class="grid">
+                <?php foreach ($groupShows as $show): ?>
+                    <?php render_media_card($show); ?>
+                <?php endforeach; ?>
             </div>
-        <?php endforeach; ?>
-    </div>
+        </section>
+    <?php endforeach; ?>
 <?php endif; ?>
 
 <?php

@@ -1,0 +1,58 @@
+Bundled license information:
+
+es6-promise/dist/es6-promise.js:
+  /*!
+   * @overview es6-promise - a tiny implementation of Promises/A+.
+   * @copyright Copyright (c) 2014 Yehuda Katz, Tom Dale, Stefan Penner and contributors (Conversion to ES6 API by Jake Archibald)
+   * @license   Licensed under MIT license
+   *            See https://raw.githubusercontent.com/stefanpenner/es6-promise/master/LICENSE
+   * @version   v4.2.8+1e68dce6
+   */
+
+three/build/three.core.js:
+three/build/three.module.js:
+  /**
+   * @license
+   * Copyright 2010-2026 Three.js Authors
+   * SPDX-License-Identifier: MIT
+   */
+
+@photo-sphere-viewer/core/index.module.js:
+  /*!
+   * Photo Sphere Viewer 5.15.1
+   * @copyright 2014-2015 Jérémy Heleine
+   * @copyright 2015-2026 Damien "Mistic" Sorel
+   * @licence MIT (https://opensource.org/licenses/MIT)
+   */
+
+three/build/three.core.js:
+three/build/three.module.js:
+  /**
+   * @license
+   * Copyright 2010-2025 Three.js Authors
+   * SPDX-License-Identifier: MIT
+   */
+
+@photo-sphere-viewer/equirectangular-video-adapter/index.module.js:
+  /*!
+   * Photo Sphere Viewer / Equirectangular Video Adapter 5.15.1
+   * @copyright 2015-2026 Damien "Mistic" Sorel
+   * @licence MIT (https://opensource.org/licenses/MIT)
+   */
+
+@photo-sphere-viewer/video-plugin/index.module.js:
+  /*!
+   * Photo Sphere Viewer / Video Plugin 5.15.1
+   * @copyright 2015-2026 Damien "Mistic" Sorel
+   * @licence MIT (https://opensource.org/licenses/MIT)
+   */
+
+@photo-sphere-viewer/gyroscope-plugin/index.module.js:
+  /*!
+   * Photo Sphere Viewer / Gyroscope Plugin 5.15.1
+   * @copyright 2015-2026 Damien "Mistic" Sorel
+   * @licence MIT (https://opensource.org/licenses/MIT)
+   */
+
+dashjs/dist/dash.all.min.js:
+  /*! For license information please see dash.all.min.js.LICENSE.txt */

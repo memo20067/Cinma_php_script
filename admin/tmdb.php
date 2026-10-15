@@ -41,20 +41,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             if ($mediaId) {
-                $message = "Successfully scraped and imported " . ucfirst($type) . " (TMDB ID: {$tmdbId}) with local covers & metadata!";
+                $message = sprintf(
+                    tr('تم استيراد %s بنجاح مع الملصقات والبيانات المحفوظة محليًا (معرّف TMDB: %d).', 'Successfully imported %s with locally cached artwork and metadata (TMDB ID: %d).'),
+                    $type === 'movie' ? tr('الفيلم', 'the movie') : tr('المسلسل', 'the TV series'),
+                    $tmdbId
+                );
             } else {
-                $error = "Failed to fetch metadata from TMDB. Please check your API key.";
+                $error = tr('تعذر جلب البيانات من TMDB. يرجى التحقق من مفتاح الخدمة.', 'Failed to fetch metadata from TMDB. Please check your API key.');
             }
         }
     }
 }
 
-render_header("TMDB Auto-Scraper");
+render_header(tr('استيراد بيانات TMDB', 'TMDB Metadata Import'));
 ?>
 
 <div style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
-    <h1>TMDB Metadata & Artwork Auto-Scraper</h1>
-    <a href="/admin/index.php" class="btn">&larr; Back to Admin Dashboard</a>
+    <h1><?= sanitize(tr('استيراد بيانات وصور TMDB', 'Import TMDB metadata and artwork')) ?></h1>
+    <a href="<?= sanitize(site_url('admin/index.php')) ?>" class="btn">&larr; <?= sanitize(tr('العودة إلى لوحة الإدارة', 'Back to Admin Dashboard')) ?></a>
 </div>
 
 <?php if ($message): ?>
@@ -65,46 +69,46 @@ render_header("TMDB Auto-Scraper");
 <?php endif; ?>
 
 <div style="background: #1e293b; padding: 1.5rem; border-radius: 8px; border: 1px solid #334155; margin-bottom: 2rem;">
-    <h2 style="font-size: 1.2rem; color: #38bdf8; margin-bottom: 1rem;">Search TMDB Database</h2>
+    <h2 style="font-size: 1.2rem; color: #38bdf8; margin-bottom: 1rem;"><?= sanitize(tr('البحث في قاعدة بيانات TMDB', 'Search the TMDB database')) ?></h2>
     <form method="POST">
         <input type="hidden" name="action" value="search">
         <div style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 1rem; align-items: end;">
             <div class="form-group" style="margin:0;">
-                <label>Movie or TV Series Title</label>
-                <input type="text" name="query" class="form-control" placeholder="e.g. Inception, Breaking Bad..." value="<?= sanitize($_POST['query'] ?? '') ?>" required>
+                <label><?= sanitize(tr('عنوان الفيلم أو المسلسل', 'Movie or TV series title')) ?></label>
+                <input type="text" name="query" class="form-control" placeholder="<?= sanitize(tr('مثال: الفيل الأزرق أو Inception', 'e.g. Inception or Breaking Bad')) ?>" value="<?= sanitize($_POST['query'] ?? '') ?>" required>
             </div>
             <div class="form-group" style="margin:0;">
-                <label>Type</label>
+                <label><?= sanitize(tr('النوع', 'Type')) ?></label>
                 <select name="type" class="form-control">
-                    <option value="movie" <?= ($_POST['type'] ?? '') === 'movie' ? 'selected' : '' ?>>Movie</option>
-                    <option value="tv" <?= ($_POST['type'] ?? '') === 'tv' ? 'selected' : '' ?>>TV Series</option>
+                    <option value="movie" <?= ($_POST['type'] ?? '') === 'movie' ? 'selected' : '' ?>><?= sanitize(tr('فيلم', 'Movie')) ?></option>
+                    <option value="tv" <?= ($_POST['type'] ?? '') === 'tv' ? 'selected' : '' ?>><?= sanitize(tr('مسلسل', 'TV Series')) ?></option>
                 </select>
             </div>
             <div class="form-group" style="margin:0;">
-                <label>Release Year (Optional)</label>
-                <input type="number" name="year" class="form-control" placeholder="YYYY" value="<?= sanitize($_POST['year'] ?? '') ?>">
+                <label><?= sanitize(tr('سنة الإصدار (اختياري)', 'Release year (optional)')) ?></label>
+                <input type="number" name="year" class="form-control" placeholder="<?= sanitize(tr('السنة', 'Year')) ?>" value="<?= sanitize($_POST['year'] ?? '') ?>">
             </div>
-            <button type="submit" class="btn btn-primary" style="height: 42px;">Search Online</button>
+            <button type="submit" class="btn btn-primary" style="height: 42px;"><?= sanitize(tr('البحث عبر الإنترنت', 'Search online')) ?></button>
         </div>
     </form>
 </div>
 
 <?php if ($searchResults && isset($searchResults['results'])): ?>
-    <h2 style="font-size: 1.25rem; margin-bottom: 1rem;">Search Results (<?= count($searchResults['results']) ?> items found)</h2>
+    <h2 style="font-size: 1.25rem; margin-bottom: 1rem;"><?= sanitize(tr('نتائج البحث', 'Search results')) ?> (<?= count($searchResults['results']) ?> <?= sanitize(tr('عنصر', 'items found')) ?>)</h2>
     <div class="grid">
         <?php foreach ($searchResults['results'] as $item):
-            $title = $item['title'] ?? $item['name'] ?? 'Untitled';
+            $title = $item['title'] ?? $item['name'] ?? tr('بدون عنوان', 'Untitled');
             $date = $item['release_date'] ?? $item['first_air_date'] ?? '';
-            $year = !empty($date) ? substr($date, 0, 4) : 'N/A';
+            $year = !empty($date) ? substr($date, 0, 4) : tr('غير متاح', 'N/A');
             $tmdbId = $item['id'];
             $type = isset($item['title']) ? 'movie' : 'tv';
-            $poster = !empty($item['poster_path']) ? 'https://image.tmdb.org/t/p/w300' . $item['poster_path'] : '';
+            $poster = !empty($item['poster_path']) ? $tmdb->downloadAndCacheImage($item['poster_path'], 'covers') : '';
         ?>
             <div class="media-card">
                 <?php if ($poster): ?>
-                    <img src="<?= $poster ?>" class="media-poster">
+                    <img src="<?= sanitize(site_url($poster)) ?>" alt="<?= sanitize($title) ?> poster" class="media-poster">
                 <?php else: ?>
-                    <div class="media-poster" style="display: flex; align-items: center; justify-content: center; color: #64748b;">No Image</div>
+                    <div class="media-poster" style="display: flex; align-items: center; justify-content: center; color: #64748b;"><?= sanitize(tr('لا توجد صورة', 'No image')) ?></div>
                 <?php endif; ?>
                 <div class="media-info">
                     <div class="media-title"><?= sanitize($title) ?> (<?= $year ?>)</div>
@@ -116,12 +120,12 @@ render_header("TMDB Auto-Scraper");
                         <input type="hidden" name="type" value="<?= $type ?>">
                         <div class="form-group" style="margin-bottom: 0.5rem;">
                             <select name="access_level" class="form-control" style="font-size: 0.8rem; padding: 0.2rem 0.4rem;">
-                                <option value="public">Public Access</option>
-                                <option value="registered">Registered Members</option>
-                                <option value="subscriber">Paid Subscribers</option>
+                                <option value="public"><?= sanitize(tr('متاح للجميع', 'Public access')) ?></option>
+                                <option value="registered"><?= sanitize(tr('للأعضاء المسجلين', 'Registered members')) ?></option>
+                                <option value="subscriber"><?= sanitize(tr('للمشتركين', 'Paid subscribers')) ?></option>
                             </select>
                         </div>
-                        <button type="submit" class="btn btn-sm btn-success" style="width: 100%;">Scrape & Save Locally</button>
+                        <button type="submit" class="btn btn-sm btn-success" style="width: 100%;"><?= sanitize(tr('استيراد وحفظ محليًا', 'Import and save locally')) ?></button>
                     </form>
                 </div>
             </div>
